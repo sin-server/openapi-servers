@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCPO Chat Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .chat-container {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        #chat-messages {
+            height: 400px;
+            overflow-y: auto;
+            padding: 15px;
+            background-color: white;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 18px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background-color: #e6f2ff;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+        .assistant-message {
+            background-color: #f0f0f0;
+            margin-right: auto;
+            border-bottom-left-radius: 4px;
+        }
+        .input-container {
+            display: flex;
+            padding: 10px;
+            background-color: #f0f0f0;
+        }
+        #user-input {
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            padding: 12px 20px;
+            background-color: #4169e1;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            margin-left: 10px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #3158d4;
+        }
+        #agent-selector {
+            padding: 12px;
+            margin-bottom: 15px;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .controls button {
+            flex: 1;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            color: #666;
+        }
+        pre {
+            background-color: #f7f7f7;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 5px 0;
+        }
+        code {
+            font-family: monospace;
+        }
+        .assistant-panel {
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        .assistant-list {
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .assistant-item {
+            padding: 10px;
+            margin: 5px 0;
+            background-color: white;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .assistant-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .delegate-form {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: white;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .delegate-form textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-height: 80px;
+        }
+        .panel-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>MCPO Chat Interface</h1>
+    
+    <div class="controls">
+        <button id="create-agent">Create New Agent</button>
+        <select id="agent-selector">
+            <option value="">Select an agent</option>
+        </select>
+    </div>
+    
+    <div class="chat-container">
+        <div id="chat-messages"></div>
+        <div class="input-container">
+            <input type="text" id="user-input" placeholder="Type your message here..." disabled>
+            <button id="send-button" disabled>Send</button>
+        </div>
+    </div>
+    
+    <div id="assistant-panel" class="assistant-panel hidden">
+        <h2>Assistant Agents</h2>
+        <div class="panel-buttons">
+            <button id="create-assistant">Create Assistant Agent</button>
+            <button id="refresh-assistants">Refresh List</button>
+        </div>
+        
+        <div id="assistant-list" class="assistant-list">
+            <div class="loading">No assistant agents available</div>
+        </div>
+        
+        <div id="delegate-form" class="delegate-form hidden">
+            <h3>Delegate Task to Assistant</h3>
+            <textarea id="task-input" placeholder="Describe the task for the assistant agent..."></textarea>
+            <div class="panel-buttons">
+                <button id="send-task">Send Task</button>
+                <button id="cancel-task">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const messagesContainer = document.getElementById('chat-messages');
+            const userInput = document.getElementById('user-input');
+            const sendButton = document.getElementById('send-button');
+            const createAgentButton = document.getElementById('create-agent');
+            const agentSelector = document.getElementById('agent-selector');
+            const assistantPanel = document.getElementById('assistant-panel');
+            const createAssistantButton = document.getElementById('create-assistant');
+            const refreshAssistantsButton = document.getElementById('refresh-assistants');
+            const assistantList = document.getElementById('assistant-list');
+            const delegateForm = document.getElementById('delegate-form');
+            const taskInput = document.getElementById('task-input');
+            const sendTaskButton = document.getElementById('send-task');
+            const cancelTaskButton = document.getElementById('cancel-task');
+            
+            let currentAgentId = null;
+            let currentAssistantId = null;
+            
+            // Load existing agents
+            loadAgents();
+            
+            // Create a new agent
+            createAgentButton.addEventListener('click', async () => {
+                try {
+                    messagesContainer.innerHTML = '<div class="loading">Creating new agent...</div>';
+                    const response = await fetch('/agent/create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ config: {} })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.agent_id) {
+                        addSystemMessage('Agent created successfully! You can now start chatting.');
+                        currentAgentId = data.agent_id;
+                        await loadAgents();
+                        agentSelector.value = currentAgentId;
+                        enableChat();
+                        assistantPanel.classList.remove('hidden');
+                        loadAssistants(currentAgentId);
+                    }
+                } catch (error) {
+                    addSystemMessage('Error creating agent: ' + error.message);
+                }
+            });
+            
+            // Select an existing agent
+            agentSelector.addEventListener('change', (e) => {
+                currentAgentId = e.target.value;
+                if (currentAgentId) {
+                    messagesContainer.innerHTML = '';
+                    addSystemMessage('Agent selected. You can now start chatting.');
+                    enableChat();
+                    assistantPanel.classList.remove('hidden');
+                    loadAssistants(currentAgentId);
+                } else {
+                    disableChat();
+                    assistantPanel.classList.add('hidden');
+                }
+            });
+            
+            // Create an assistant agent
+            createAssistantButton.addEventListener('click', async () => {
+                if (!currentAgentId) return;
+                
+                try {
+                    assistantList.innerHTML = '<div class="loading">Creating assistant agent...</div>';
+                    
+                    const response = await fetch(`/agent/${currentAgentId}/create_assistant`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ config: {} })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.assistant_id) {
+                        addSystemMessage(`Assistant agent created successfully (ID: ${data.assistant_id.substring(0, 8)}...)`);
+                        loadAssistants(currentAgentId);
+                    }
+                } catch (error) {
+                    assistantList.innerHTML = '';
+                    addSystemMessage('Error creating assistant agent: ' + error.message);
+                }
+            });
+            
+            // Refresh assistants list
+            refreshAssistantsButton.addEventListener('click', () => {
+                if (currentAgentId) {
+                    loadAssistants(currentAgentId);
+                }
+            });
+            
+            // Delegate task setup
+            document.addEventListener('click', (e) => {
+                if (e.target.classList.contains('delegate-button')) {
+                    const assistantId = e.target.dataset.assistantId;
+                    if (assistantId) {
+                        currentAssistantId = assistantId;
+                        delegateForm.classList.remove('hidden');
+                        taskInput.focus();
+                    }
+                }
+            });
+            
+            // Cancel delegation
+            cancelTaskButton.addEventListener('click', () => {
+                delegateForm.classList.add('hidden');
+                taskInput.value = '';
+                currentAssistantId = null;
+            });
+            
+            // Send task to assistant
+            sendTaskButton.addEventListener('click', async () => {
+                const task = taskInput.value.trim();
+                if (!task || !currentAgentId || !currentAssistantId) return;
+                
+                try {
+                    delegateForm.classList.add('hidden');
+                    addSystemMessage(`Delegating task to assistant (ID: ${currentAssistantId.substring(0, 8)}...)...`);
+                    
+                    const response = await fetch(`/agent/${currentAgentId}/delegate/${currentAssistantId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ task: task })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.response) {
+                        addSystemMessage(`Assistant response: ${data.response}`);
+                    } else if (data.error) {
+                        addSystemMessage('Error: ' + data.error);
+                    }
+                    
+                    taskInput.value = '';
+                    currentAssistantId = null;
+                } catch (error) {
+                    addSystemMessage('Error delegating task: ' + error.message);
+                }
+            });
+            
+            // Send message
+            sendButton.addEventListener('click', sendMessage);
+            userInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+            
+            async function sendMessage() {
+                const message = userInput.value.trim();
+                if (!message || !currentAgentId) return;
+                
+                // Add user message to chat
+                addUserMessage(message);
+                userInput.value = '';
+                
+                // Disable input while processing
+                disableChat();
+                
+                try {
+                    // Add loading indicator
+                    const loadingDiv = document.createElement('div');
+                    loadingDiv.className = 'loading';
+                    loadingDiv.textContent = 'Thinking...';
+                    messagesContainer.appendChild(loadingDiv);
+                    
+                    // Send message to API
+                    const response = await fetch(`/agent/${currentAgentId}/chat`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt: message })
+                    });
+                    
+                    // Remove loading indicator
+                    messagesContainer.removeChild(loadingDiv);
+                    
+                    const data = await response.json();
+                    if (data.response) {
+                        addAssistantMessage(data.response);
+                    } else if (data.error) {
+                        addSystemMessage('Error: ' + data.error);
+                    }
+                } catch (error) {
+                    addSystemMessage('Error sending message: ' + error.message);
+                }
+                
+                // Re-enable input
+                enableChat();
+                
+                // Scroll to bottom
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+            
+            async function loadAssistants(agentId) {
+                if (!agentId) return;
+                
+                try {
+                    assistantList.innerHTML = '<div class="loading">Loading assistants...</div>';
+                    
+                    const response = await fetch(`/agent/${agentId}/assistants`);
+                    const data = await response.json();
+                    
+                    if (data.assistants && Object.keys(data.assistants).length > 0) {
+                        assistantList.innerHTML = '';
+                        
+                        Object.entries(data.assistants).forEach(([assistantId, info]) => {
+                            const assistantDiv = document.createElement('div');
+                            assistantDiv.className = 'assistant-item';
+                            
+                            const createdAt = new Date(info.created_at).toLocaleString();
+                            assistantDiv.innerHTML = `
+                                <div>
+                                    <strong>ID:</strong> ${assistantId.substring(0, 8)}...<br>
+                                    <small>Created: ${createdAt}</small>
+                                </div>
+                                <div class="assistant-actions">
+                                    <button class="delegate-button" data-assistant-id="${assistantId}">Delegate Task</button>
+                                </div>
+                            `;
+                            
+                            assistantList.appendChild(assistantDiv);
+                        });
+                    } else {
+                        assistantList.innerHTML = '<div class="loading">No assistant agents available</div>';
+                    }
+                } catch (error) {
+                    assistantList.innerHTML = '<div class="loading">Error loading assistants</div>';
+                    console.error('Error loading assistants:', error);
+                }
+            }
+            
+            function addUserMessage(text) {
+                const div = document.createElement('div');
+                div.className = 'message user-message';
+                div.textContent = text;
+                messagesContainer.appendChild(div);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+            
+            function addAssistantMessage(text) {
+                const div = document.createElement('div');
+                div.className = 'message assistant-message';
+                
+                // Process text for code blocks
+                const processed = processMessageText(text);
+                div.innerHTML = processed;
+                
+                messagesContainer.appendChild(div);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+            
+            function addSystemMessage(text) {
+                const div = document.createElement('div');
+                div.className = 'message assistant-message';
+                div.innerHTML = '<em>' + text + '</em>';
+                messagesContainer.appendChild(div);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+            
+            function processMessageText(text) {
+                // Handle code blocks (```code```)
+                let processed = text.replace(/```([\s\S]*?)```/g, function(match, code) {
+                    return '<pre><code>' + code + '</code></pre>';
+                });
+                
+                // Handle line breaks
+                processed = processed.replace(/\\n/g, '<br>');
+                return processed;
+            }
+            
+            async function loadAgents() {
+                try {
+                    const response = await fetch('/agent/list');
+                    const agents = await response.json();
+                    
+                    // Clear existing options except the first one
+                    while (agentSelector.options.length > 1) {
+                        agentSelector.remove(1);
+                    }
+                    
+                    // Add agents to selector
+                    Object.keys(agents).forEach(agentId => {
+                        const option = document.createElement('option');
+                        option.value = agentId;
+                        option.textContent = `Agent ${agentId.substring(0, 8)}...`;
+                        agentSelector.appendChild(option);
+                        
+                        // If this is our current agent, select it
+                        if (agentId === currentAgentId) {
+                            option.selected = true;
+                            assistantPanel.classList.remove('hidden');
+                            loadAssistants(agentId);
+                        }
+                    });
+                    
+                    // If we have no agents but were showing one, reset
+                    if (Object.keys(agents).length === 0 && currentAgentId) {
+                        currentAgentId = null;
+                        disableChat();
+                        messagesContainer.innerHTML = '';
+                        assistantPanel.classList.add('hidden');
+                        addSystemMessage('No agents available. Create a new agent to start chatting.');
+                    }
+                } catch (error) {
+                    console.error('Error loading agents:', error);
+                }
+            }
+            
+            function enableChat() {
+                userInput.disabled = false;
+                sendButton.disabled = false;
+                userInput.focus();
+            }
+            
+            function disableChat() {
+                userInput.disabled = true;
+                sendButton.disabled = true;
+            }
+            
+            // Initial message
+            addSystemMessage('Welcome to MCPO Chat! Create a new agent or select an existing one to start chatting.');
+        });
+    </script>
+</body>
+</html>
