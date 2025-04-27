@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "chat-mcp": {
+      "url": "http://chat-mcp-server:8000"
+    },
+    "filesystem": {
+      "url": "http://filesystem-server:8000"
+    },
+    "get-user-info": {
+      "url": "http://get-user-info-server:8000"
+    },
+    "git": {
+      "url": "http://git-server:8000"
+    },
+    "memory": {
+      "url": "http://memory-server:8000"
+    },
+    "time": {
+      "url": "http://time-server:8000"
+    }
+  }
+}

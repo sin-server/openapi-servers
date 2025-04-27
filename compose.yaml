@@ -1,4 +1,18 @@
 services:
+  # API Gateway to expose all servers under a single domain
+  api-gateway:
+    image: nginx:alpine
+    ports:
+      - 8000:80
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - filesystem-server
+      - memory-server
+      - time-server
+      - get-user-info-server
+      - git-server
+
   filesystem-server:
     build:
       context: ./servers/filesystem
@@ -16,6 +30,16 @@ services:
       context: ./servers/time
     ports:
       - 8083:8000
+  get-user-info-server:
+    build:
+      context: ./servers/get-user-info
+    ports:
+      - 8084:8000
+  git-server:
+    build:
+      context: ./servers/git
+    ports:
+      - 8085:8000
 
 volumes:
   memory:
